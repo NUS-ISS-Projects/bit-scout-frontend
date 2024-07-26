@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import logo from "../../../public/homeChart.png";
 
 export default function Home() {
@@ -14,8 +15,11 @@ export default function Home() {
           <h2 className='text-2xl font-medium mt-2'>
             Real-Time Cryptocurrency Price Monitoring
           </h2>
-          <Button className='mt-10 bg-gradient-to-r from-purple-400 to-pink-500 px-6 py-3 text-white text-xl rounded-full'>
-            Log in to Start
+          <Button
+            asChild
+            className='mt-10 bg-gradient-to-r from-purple-400 to-pink-500 px-6 py-3 text-white text-xl rounded-full'
+          >
+            <Link href='/login'>Log in to Start</Link>
           </Button>
         </div>
       </div>
