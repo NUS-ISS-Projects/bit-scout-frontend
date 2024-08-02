@@ -7,7 +7,7 @@ interface HomeLayoutProps {
 
 export default async function HomeLayout({ children }: HomeLayoutProps) {
   return (
-    <div className='flex min-h-screen flex-col justify-between'>
+    <div className='flex min-h-screen flex-col justify-between text-white'>
       <header className='container z-40 bg-background'>
         <div className='flex h-20 py-6'>
           <Header />
@@ -16,7 +16,9 @@ export default async function HomeLayout({ children }: HomeLayoutProps) {
       <main className='flex-1 flex items-center justify-center'>
         {children}
       </main>
-      <SiteFooter />
+      <footer className='container z-40 bg-background'>
+        <SiteFooter />
+      </footer>
     </div>
   );
 }
