@@ -8,10 +8,10 @@ import {
 } from "@/components/ui/card";
 
 import { DashboardSideBar } from "@/components/dashboard/dashboardSideBar";
-import { MainPrices } from "@/components/dashboard/MainPrices";
+import { AlertsTable } from "@/components/AlertsTable";
 import { DashboardHeader } from "@/components/dashboard/dashboardHeader";
 
-export default function Dashboard() {
+export default function Alerts() {
   return (
     <div className='flex min-h-screen w-full flex-col bg-muted/40'>
       <aside className='fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex'>
@@ -25,19 +25,17 @@ export default function Dashboard() {
         <main className='grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-4'>
           <Card>
             <CardHeader>
-              <CardTitle>
-                Today&apos;s Cryptocurrency Prices by Market Cap
-              </CardTitle>
+              <CardTitle>Alerts</CardTitle>
               <CardDescription>
-                Keep track of any coin movement with favourite
+                View and manage your price alerts.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <MainPrices />
+              <AlertsTable />
             </CardContent>
             <CardFooter>
               <div className='text-xs text-muted-foreground'>
-                Showing <strong>10</strong> of <strong>10066</strong>
+                Showing <strong>5</strong> of <strong>50</strong>
               </div>
             </CardFooter>
           </Card>

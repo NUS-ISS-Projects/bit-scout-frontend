@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDownUp, ChevronDownIcon, Star } from "lucide-react";
+import { Star, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -15,13 +17,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -45,76 +40,6 @@ const data: Crypto[] = [
     volume: 1234567890,
     volumeEqu: 643045,
     circulatingSupply: 1234567890,
-  },
-  {
-    id: "2",
-    rank: 2,
-    name: "Ethereum",
-    token: "ETH",
-    price: 4321.45,
-    onehour: -0.32,
-    twentyfourhour: 2.58,
-    sevendays: -1.23,
-    marketcap: 543210987,
-    volume: 987654321,
-    volumeEqu: 876543,
-    circulatingSupply: 987654321,
-  },
-  {
-    id: "3",
-    rank: 3,
-    name: "Ripple",
-    token: "XRP",
-    price: 1.23,
-    onehour: 0.54,
-    twentyfourhour: -0.45,
-    sevendays: 3.45,
-    marketcap: 234567890,
-    volume: 123456789,
-    volumeEqu: 234567,
-    circulatingSupply: 1234567890,
-  },
-  {
-    id: "4",
-    rank: 4,
-    name: "Litecoin",
-    token: "LTC",
-    price: 312.89,
-    onehour: 0.12,
-    twentyfourhour: 1.45,
-    sevendays: -0.89,
-    marketcap: 456789012,
-    volume: 345678901,
-    volumeEqu: 123456,
-    circulatingSupply: 654321098,
-  },
-  {
-    id: "5",
-    rank: 5,
-    name: "Cardano",
-    token: "ADA",
-    price: 2.45,
-    onehour: -0.12,
-    twentyfourhour: 3.12,
-    sevendays: 1.78,
-    marketcap: 567890123,
-    volume: 234567890,
-    volumeEqu: 765432,
-    circulatingSupply: 789012345,
-  },
-  {
-    id: "6",
-    rank: 6,
-    name: "Polkadot",
-    token: "DOT",
-    price: 45.67,
-    onehour: 0.34,
-    twentyfourhour: -0.56,
-    sevendays: 2.34,
-    marketcap: 678901234,
-    volume: 123456789,
-    volumeEqu: 987654,
-    circulatingSupply: 890123456,
   },
 ];
 
@@ -149,16 +74,10 @@ export const columns: ColumnDef<Crypto>[] = [
     cell: ({ row }) => {
       return (
         <Button variant='ghost' className='h-8 w-8 p-0'>
-          <span className='sr-only'>Open menu</span>
           <Star className='h-4 w-4' />
         </Button>
       );
     },
-  },
-  {
-    accessorKey: "rank",
-    header: "#",
-    cell: ({ row }) => <div className='capitalize'>{row.getValue("rank")}</div>,
   },
   {
     accessorKey: "name",
@@ -169,21 +88,6 @@ export const columns: ColumnDef<Crypto>[] = [
       </div>
     ),
   },
-  //   {
-  //     accessorKey: "email",
-  //     header: ({ column }) => {
-  //       return (
-  //         <Button
-  //           variant='ghost'
-  //           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-  //         >
-  //           Email
-  //           <ArrowDownUp className='ml-2 h-4 w-4' />
-  //         </Button>
-  //       );
-  //     },
-  //     cell: ({ row }) => <div className='lowercase'>{row.getValue("email")}</div>,
-  //   },
   {
     accessorKey: "price",
     header: "Price",
@@ -245,7 +149,7 @@ export const columns: ColumnDef<Crypto>[] = [
   },
 ];
 
-export function MainPrices() {
+export function WatchlistTable() {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -276,32 +180,18 @@ export function MainPrices() {
   return (
     <div className='w-full'>
       <div className='flex items-center py-4'>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant='outline' className='ml-auto'>
-              Filter <ChevronDownIcon className='ml-2 h-4 w-4' />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align='end'>
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => {
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    className='capitalize'
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(value) =>
-                      column.toggleVisibility(!!value)
-                    }
-                  >
-                    {column.id}
-                  </DropdownMenuCheckboxItem>
-                );
-              })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className='relative max-w-sm'>
+          <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground' />
+          <Input
+            type='search'
+            placeholder='Search for a coin'
+            value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+            onChange={(event) =>
+              table.getColumn("name")?.setFilterValue(event.target.value)
+            }
+            className='pl-10'
+          />
+        </div>
       </div>
       <div className='rounded-md border'>
         <Table>
