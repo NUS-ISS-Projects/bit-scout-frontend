@@ -29,7 +29,7 @@ export function DashboardHeader() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align='end'>
-        <Link href='/settings' passHref>
+        <Link href='/dashboard/settings' passHref>
           <DropdownMenuItem asChild>
             <a>Settings</a>
           </DropdownMenuItem>

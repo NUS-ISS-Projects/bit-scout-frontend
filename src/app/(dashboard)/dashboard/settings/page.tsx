@@ -81,7 +81,6 @@ export default function Settings() {
                       <Input placeholder='Full Name' />
                     </form>
                   </CardContent>
-
                   <CardHeader>
                     <CardTitle>Email</CardTitle>
                     <CardDescription>

@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Star, Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { useRouter } from "next/navigation";
+import { Star, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   ColumnDef,
@@ -26,7 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const data: Crypto[] = [
+const initialData: Crypto[] = [
   {
     id: "1",
     rank: 1,
@@ -67,88 +67,6 @@ export const amountFormatter = (value: any) => {
   }).format(value);
 };
 
-export const columns: ColumnDef<Crypto>[] = [
-  {
-    id: "actions",
-    enableHiding: false,
-    cell: ({ row }) => {
-      return (
-        <Button variant='ghost' className='h-8 w-8 p-0'>
-          <Star className='h-4 w-4' />
-        </Button>
-      );
-    },
-  },
-  {
-    accessorKey: "name",
-    header: "Name",
-    cell: ({ row }) => (
-      <div className='capitalize'>
-        {row.getValue("name")} {row.original.token}
-      </div>
-    ),
-  },
-  {
-    accessorKey: "price",
-    header: "Price",
-    cell: ({ row }) => (
-      <div className='capitalize'>
-        ${amountFormatter(row.getValue("price"))}
-      </div>
-    ),
-  },
-  {
-    accessorKey: "onehour",
-    header: "1h %",
-    cell: ({ row }) => (
-      <div className='capitalize'>{row.getValue("onehour")} %</div>
-    ),
-  },
-  {
-    accessorKey: "twentyfourhour",
-    header: "24h %",
-    cell: ({ row }) => (
-      <div className='capitalize'>{row.getValue("twentyfourhour")} %</div>
-    ),
-  },
-  {
-    accessorKey: "sevendays",
-    header: "7d %",
-    cell: ({ row }) => (
-      <div className='capitalize'>{row.getValue("sevendays")} %</div>
-    ),
-  },
-  {
-    accessorKey: "marketcap",
-    header: "Market Cap",
-    cell: ({ row }) => (
-      <div className='capitalize'>$ {row.getValue("marketcap")}</div>
-    ),
-  },
-  {
-    accessorKey: "volume",
-    header: "Volume(24h)",
-    cell: ({ row }) => (
-      <div className='capitalize'>
-        ${amountFormatter(row.getValue("volume"))}
-        <div className='text-xs text-gray-500 '>
-          {amountFormatter(row.original.volumeEqu)} {row.original.token}
-        </div>
-      </div>
-    ),
-  },
-  {
-    accessorKey: "circulatingSupply",
-    header: "Circulating Supply",
-    cell: ({ row }) => (
-      <div className='capitalize'>
-        {amountFormatter(row.getValue("circulatingSupply"))} {""}
-        {row.original.token}
-      </div>
-    ),
-  },
-];
-
 export function WatchlistTable() {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -157,6 +75,100 @@ export function WatchlistTable() {
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const [loading, setLoading] = React.useState(false); // Loading state
+  const [data, setData] = React.useState(initialData); // Watchlist data state
+  const router = useRouter();
+
+  const columns: ColumnDef<Crypto>[] = [
+    {
+      id: "actions",
+      enableHiding: false,
+      cell: ({ row }) => {
+        return (
+          <Button
+            variant='ghost'
+            className='h-8 w-8 p-0'
+            onClick={() => handleRemoveFromWatchlist(row.original.id)}
+            disabled={loading} // Disable button during loading
+          >
+            {loading ? (
+              <Loader2 className='h-4 w-4 animate-spin' />
+            ) : (
+              <Star className='h-4 w-4 text-yellow-500 fill-yellow-500' />
+            )}
+          </Button>
+        );
+      },
+    },
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ row }) => (
+        <div className='capitalize'>
+          {row.getValue("name")} {row.original.token}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "price",
+      header: "Price",
+      cell: ({ row }) => (
+        <div className='capitalize'>
+          ${amountFormatter(row.getValue("price"))}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "onehour",
+      header: "1h %",
+      cell: ({ row }) => (
+        <div className='capitalize'>{row.getValue("onehour")} %</div>
+      ),
+    },
+    {
+      accessorKey: "twentyfourhour",
+      header: "24h %",
+      cell: ({ row }) => (
+        <div className='capitalize'>{row.getValue("twentyfourhour")} %</div>
+      ),
+    },
+    {
+      accessorKey: "sevendays",
+      header: "7d %",
+      cell: ({ row }) => (
+        <div className='capitalize'>{row.getValue("sevendays")} %</div>
+      ),
+    },
+    {
+      accessorKey: "marketcap",
+      header: "Market Cap",
+      cell: ({ row }) => (
+        <div className='capitalize'>$ {row.getValue("marketcap")}</div>
+      ),
+    },
+    {
+      accessorKey: "volume",
+      header: "Volume(24h)",
+      cell: ({ row }) => (
+        <div className='capitalize'>
+          ${amountFormatter(row.getValue("volume"))}
+          <div className='text-xs text-gray-500 '>
+            {amountFormatter(row.original.volumeEqu)} {row.original.token}
+          </div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "circulatingSupply",
+      header: "Circulating Supply",
+      cell: ({ row }) => (
+        <div className='capitalize'>
+          {amountFormatter(row.getValue("circulatingSupply"))} {""}
+          {row.original.token}
+        </div>
+      ),
+    },
+  ];
 
   const table = useReactTable({
     data,
@@ -177,22 +189,15 @@ export function WatchlistTable() {
     },
   });
 
+  const handleRemoveFromWatchlist = async (id: string) => {
+    setLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate loading
+    setData((prevData) => prevData.filter((coin) => coin.id !== id));
+    setLoading(false);
+  };
+
   return (
     <div className='w-full'>
-      <div className='flex items-center py-4'>
-        <div className='relative max-w-sm'>
-          <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground' />
-          <Input
-            type='search'
-            placeholder='Search for a coin'
-            value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-            onChange={(event) =>
-              table.getColumn("name")?.setFilterValue(event.target.value)
-            }
-            className='pl-10'
-          />
-        </div>
-      </div>
       <div className='rounded-md border'>
         <Table>
           <TableHeader>
@@ -236,7 +241,14 @@ export function WatchlistTable() {
                   colSpan={columns.length}
                   className='h-24 text-center'
                 >
-                  No results.
+                  <div className='text-center py-10'>
+                    <p className='mb-4 text-lg font-semibold'>
+                      Your watchlist is empty.
+                    </p>
+                    <Button onClick={() => router.push("/dashboard")}>
+                      Add Coins to Watchlist
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             )}

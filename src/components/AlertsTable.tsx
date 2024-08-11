@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Search } from "lucide-react";
+import { Trash, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   ColumnDef,
@@ -26,6 +26,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const data: Alert[] = [
   {
@@ -58,50 +70,6 @@ export const amountFormatter = (value: any) => {
   }).format(value);
 };
 
-export const columns: ColumnDef<Alert>[] = [
-  {
-    accessorKey: "name",
-    header: "Name",
-    cell: ({ row }) => (
-      <div className='capitalize'>
-        {row.getValue("name")} {row.original.token}
-      </div>
-    ),
-  },
-  {
-    accessorKey: "alertType",
-    header: "Alert Type",
-    cell: ({ row }) => (
-      <div className='capitalize'>{row.getValue("alertType")}</div>
-    ),
-  },
-  {
-    accessorKey: "alertValue",
-    header: "Alert Value",
-    cell: ({ row }) => (
-      <div className='capitalize'>
-        ${amountFormatter(row.getValue("alertValue"))}
-      </div>
-    ),
-  },
-  {
-    accessorKey: "currentPrice",
-    header: "Current Price",
-    cell: ({ row }) => (
-      <div className='capitalize'>
-        ${amountFormatter(row.getValue("currentPrice"))}
-      </div>
-    ),
-  },
-  {
-    accessorKey: "remarks",
-    header: "Remarks",
-    cell: ({ row }) => (
-      <div className='capitalize'>{row.getValue("remarks")}</div>
-    ),
-  },
-];
-
 export function AlertsTable() {
   const router = useRouter();
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -111,6 +79,85 @@ export function AlertsTable() {
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const [manageMode, setManageMode] = React.useState(false);
+
+  const columns: ColumnDef<Alert>[] = [
+    ...(manageMode
+      ? [
+          {
+            id: "select",
+            header: ({ table }: { table: any }) => (
+              <input
+                type='checkbox'
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    table
+                      .getRowModel()
+                      .rows.forEach(({ row }: { row: any }) =>
+                        row.toggleSelected(true)
+                      );
+                  } else {
+                    table
+                      .getRowModel()
+                      .rows.forEach(({ row }: { row: any }) =>
+                        row.toggleSelected(false)
+                      );
+                  }
+                }}
+              />
+            ),
+            cell: ({ row }: { row: any }) => (
+              <input
+                type='checkbox'
+                checked={row.getIsSelected()}
+                onChange={row.getToggleSelectedHandler()}
+              />
+            ),
+          },
+        ]
+      : []),
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ row }) => (
+        <div className='capitalize'>
+          {row.getValue("name")} {row.original.token}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "alertType",
+      header: "Alert Type",
+      cell: ({ row }) => (
+        <div className='capitalize'>{row.getValue("alertType")}</div>
+      ),
+    },
+    {
+      accessorKey: "alertValue",
+      header: "Alert Value",
+      cell: ({ row }) => (
+        <div className='capitalize'>
+          ${amountFormatter(row.getValue("alertValue"))}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "currentPrice",
+      header: "Current Price",
+      cell: ({ row }) => (
+        <div className='capitalize'>
+          ${amountFormatter(row.getValue("currentPrice"))}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "remarks",
+      header: "Remarks",
+      cell: ({ row }) => (
+        <div className='capitalize'>{row.getValue("remarks")}</div>
+      ),
+    },
+  ];
 
   const table = useReactTable({
     data,
@@ -152,7 +199,31 @@ export function AlertsTable() {
         >
           Add Alert
         </Button>
-        <Button className='ml-3'>Manage Alert</Button>
+        <Button className='ml-3' onClick={() => setManageMode(!manageMode)}>
+          Manage Alert
+        </Button>
+        {manageMode && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button className='ml-3 bg-red-600 hover:bg-red-400'>
+                <Trash className='mr-2 h-4 w-4' />
+                Delete Alert
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete the alert?</AlertDialogTitle>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction className=' bg-red-600 hover:bg-red-400'>
+                  <Trash className='mr-2 h-4 w-4' />
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
       <div className='rounded-md border'>
         <Table>
@@ -197,7 +268,16 @@ export function AlertsTable() {
                   colSpan={columns.length}
                   className='h-24 text-center'
                 >
-                  No results.
+                  <div className='text-center py-10'>
+                    <p className='mb-4 text-lg font-semibold'>
+                      Your alerts are empty.
+                    </p>
+                    <Button
+                      onClick={() => router.push("/dashboard/alerts/add")}
+                    >
+                      Add alert
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             )}

@@ -1,12 +1,15 @@
+"use client";
+import React, { useState } from "react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Home, BellRing, Star } from "lucide-react";
+import { Home, Bell, BellDot, Star } from "lucide-react";
 import Link from "next/link";
 
 export function DashboardSideBar() {
+  const [notications, setNotications] = useState(1);
   return (
     <>
       <nav className='flex flex-col items-center gap-4 px-2 py-4'>
@@ -44,7 +47,11 @@ export function DashboardSideBar() {
               href='/dashboard/alerts'
               className='flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8'
             >
-              <BellRing className='h-5 w-5' />
+              {notications > 0 ? (
+                <BellDot className='h-5 w-5 text-red-500' />
+              ) : (
+                <Bell className='h-5 w-5' />
+              )}
               <span className='sr-only'>Alerts</span>
             </Link>
           </TooltipTrigger>
