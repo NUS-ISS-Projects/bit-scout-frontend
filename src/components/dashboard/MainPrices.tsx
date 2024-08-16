@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDownIcon, Star, Search } from "lucide-react";
+import { ChevronDownIcon, Star, Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   ColumnDef,
@@ -32,7 +32,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const data: Crypto[] = [
+import axios from "axios";
+
+const WATCHLIST_API = process.env.NEXT_PUBLIC_WATCHLIST_API;
+
+const mockData: Crypto[] = [
   {
     id: "1",
     rank: 1,
@@ -143,108 +147,6 @@ export const amountFormatter = (value: any) => {
   }).format(value);
 };
 
-export const columns: ColumnDef<Crypto>[] = [
-  {
-    id: "actions",
-    enableHiding: false,
-    cell: ({ row }) => {
-      return (
-        <Button variant='ghost' className='h-8 w-8 p-0'>
-          <Star className='h-4 w-4' />
-        </Button>
-      );
-    },
-  },
-  {
-    accessorKey: "rank",
-    header: "#",
-    cell: ({ row }) => <div className='capitalize'>{row.getValue("rank")}</div>,
-  },
-  {
-    accessorKey: "name",
-    header: "Name",
-    cell: ({ row }) => (
-      <div className='capitalize'>
-        {row.getValue("name")} {row.original.token}
-      </div>
-    ),
-  },
-  //   {
-  //     accessorKey: "email",
-  //     header: ({ column }) => {
-  //       return (
-  //         <Button
-  //           variant='ghost'
-  //           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-  //         >
-  //           Email
-  //           <ArrowDownUp className='ml-2 h-4 w-4' />
-  //         </Button>
-  //       );
-  //     },
-  //     cell: ({ row }) => <div className='lowercase'>{row.getValue("email")}</div>,
-  //   },
-  {
-    accessorKey: "price",
-    header: "Price",
-    cell: ({ row }) => (
-      <div className='capitalize'>
-        ${amountFormatter(row.getValue("price"))}
-      </div>
-    ),
-  },
-  {
-    accessorKey: "onehour",
-    header: "1h %",
-    cell: ({ row }) => (
-      <div className='capitalize'>{row.getValue("onehour")} %</div>
-    ),
-  },
-  {
-    accessorKey: "twentyfourhour",
-    header: "24h %",
-    cell: ({ row }) => (
-      <div className='capitalize'>{row.getValue("twentyfourhour")} %</div>
-    ),
-  },
-  {
-    accessorKey: "sevendays",
-    header: "7d %",
-    cell: ({ row }) => (
-      <div className='capitalize'>{row.getValue("sevendays")} %</div>
-    ),
-  },
-  {
-    accessorKey: "marketcap",
-    header: "Market Cap",
-    cell: ({ row }) => (
-      <div className='capitalize'>$ {row.getValue("marketcap")}</div>
-    ),
-  },
-  {
-    accessorKey: "volume",
-    header: "Volume(24h)",
-    cell: ({ row }) => (
-      <div className='capitalize'>
-        ${amountFormatter(row.getValue("volume"))}
-        <div className='text-xs text-gray-500 '>
-          {amountFormatter(row.original.volumeEqu)} {row.original.token}
-        </div>
-      </div>
-    ),
-  },
-  {
-    accessorKey: "circulatingSupply",
-    header: "Circulating Supply",
-    cell: ({ row }) => (
-      <div className='capitalize'>
-        {amountFormatter(row.getValue("circulatingSupply"))} {""}
-        {row.original.token}
-      </div>
-    ),
-  },
-];
-
 export function MainPrices() {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -253,6 +155,170 @@ export function MainPrices() {
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const [loading, setLoading] = React.useState(false);
+  const [favourites, setFavourites] = React.useState<{
+    [key: string]: boolean;
+  }>({});
+  const [data, setData] = React.useState(mockData);
+  const userId = 1; //Mock User ID
+
+  React.useEffect(() => {
+    const fetchWatchlist = async () => {
+      try {
+        const response = await axios.get(`${WATCHLIST_API}/${userId}`);
+        const watchlist = response.data.cryptoIds;
+
+        // Assuming the API returns an array of crypto IDs
+        const favouritesMap = watchlist.reduce(
+          (acc: { [key: string]: boolean }, crypto: string) => {
+            acc[crypto] = true;
+            return acc;
+          },
+          {}
+        );
+
+        setFavourites(favouritesMap);
+      } catch (error) {
+        console.error("Failed to fetch watchlist:", error);
+      }
+    };
+
+    fetchWatchlist();
+  }, [userId]);
+
+  const toggleFavourite = async (cryptoId: string) => {
+    setLoading(true);
+
+    try {
+      // Make a POST request to add the crypto to the user's watchlist
+      await axios.post(`${WATCHLIST_API}/${userId}/add?cryptoId=${cryptoId}`);
+
+      // Update the local state after a successful POST request
+      setFavourites((prev) => ({
+        ...prev,
+        [cryptoId]: true,
+      }));
+    } catch (error) {
+      console.error("Failed to update watchlist:", error);
+      // Optionally handle the error (e.g., show a notification)
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const columns: ColumnDef<Crypto>[] = [
+    {
+      id: "actions",
+      enableHiding: false,
+      cell: ({ row }) => {
+        const isFavourited = favourites[row.original.token];
+        return (
+          <Button
+            variant='ghost'
+            className='h-8 w-8 p-0'
+            onClick={() => toggleFavourite(row.original.token)}
+            disabled={loading} // Disable button during loading
+          >
+            {isFavourited ? (
+              <Star className='h-4 w-4 text-yellow-500 fill-yellow-500' />
+            ) : (
+              <Star className='h-4 w-4 text-black fill-white' />
+            )}
+          </Button>
+        );
+      },
+    },
+    {
+      accessorKey: "rank",
+      header: "#",
+      cell: ({ row }) => (
+        <div className='capitalize'>{row.getValue("rank")}</div>
+      ),
+    },
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ row }) => (
+        <div className='capitalize'>
+          {row.getValue("name")} {row.original.token}
+        </div>
+      ),
+    },
+    //   {
+    //     accessorKey: "email",
+    //     header: ({ column }) => {
+    //       return (
+    //         <Button
+    //           variant='ghost'
+    //           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+    //         >
+    //           Email
+    //           <ArrowDownUp className='ml-2 h-4 w-4' />
+    //         </Button>
+    //       );
+    //     },
+    //     cell: ({ row }) => <div className='lowercase'>{row.getValue("email")}</div>,
+    //   },
+    {
+      accessorKey: "price",
+      header: "Price",
+      cell: ({ row }) => (
+        <div className='capitalize'>
+          ${amountFormatter(row.getValue("price"))}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "onehour",
+      header: "1h %",
+      cell: ({ row }) => (
+        <div className='capitalize'>{row.getValue("onehour")} %</div>
+      ),
+    },
+    {
+      accessorKey: "twentyfourhour",
+      header: "24h %",
+      cell: ({ row }) => (
+        <div className='capitalize'>{row.getValue("twentyfourhour")} %</div>
+      ),
+    },
+    {
+      accessorKey: "sevendays",
+      header: "7d %",
+      cell: ({ row }) => (
+        <div className='capitalize'>{row.getValue("sevendays")} %</div>
+      ),
+    },
+    {
+      accessorKey: "marketcap",
+      header: "Market Cap",
+      cell: ({ row }) => (
+        <div className='capitalize'>$ {row.getValue("marketcap")}</div>
+      ),
+    },
+    {
+      accessorKey: "volume",
+      header: "Volume(24h)",
+      cell: ({ row }) => (
+        <div className='capitalize'>
+          ${amountFormatter(row.getValue("volume"))}
+          <div className='text-xs text-gray-500 '>
+            {amountFormatter(row.original.volumeEqu)} {row.original.token}
+          </div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "circulatingSupply",
+      header: "Circulating Supply",
+      cell: ({ row }) => (
+        <div className='capitalize'>
+          {amountFormatter(row.getValue("circulatingSupply"))} {""}
+          {row.original.token}
+        </div>
+      ),
+    },
+  ];
 
   const table = useReactTable({
     data,

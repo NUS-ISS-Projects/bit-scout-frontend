@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Star, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import axios from "axios";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -26,7 +27,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const initialData: Crypto[] = [
+const WATCHLIST_API = process.env.NEXT_PUBLIC_WATCHLIST_API;
+
+const mockData: Crypto[] = [
   {
     id: "1",
     rank: 1,
@@ -40,6 +43,76 @@ const initialData: Crypto[] = [
     volume: 1234567890,
     volumeEqu: 643045,
     circulatingSupply: 1234567890,
+  },
+  {
+    id: "2",
+    rank: 2,
+    name: "Ethereum",
+    token: "ETH",
+    price: 4321.45,
+    onehour: -0.32,
+    twentyfourhour: 2.58,
+    sevendays: -1.23,
+    marketcap: 543210987,
+    volume: 987654321,
+    volumeEqu: 876543,
+    circulatingSupply: 987654321,
+  },
+  {
+    id: "3",
+    rank: 3,
+    name: "Ripple",
+    token: "XRP",
+    price: 1.23,
+    onehour: 0.54,
+    twentyfourhour: -0.45,
+    sevendays: 3.45,
+    marketcap: 234567890,
+    volume: 123456789,
+    volumeEqu: 234567,
+    circulatingSupply: 1234567890,
+  },
+  {
+    id: "4",
+    rank: 4,
+    name: "Litecoin",
+    token: "LTC",
+    price: 312.89,
+    onehour: 0.12,
+    twentyfourhour: 1.45,
+    sevendays: -0.89,
+    marketcap: 456789012,
+    volume: 345678901,
+    volumeEqu: 123456,
+    circulatingSupply: 654321098,
+  },
+  {
+    id: "5",
+    rank: 5,
+    name: "Cardano",
+    token: "ADA",
+    price: 2.45,
+    onehour: -0.12,
+    twentyfourhour: 3.12,
+    sevendays: 1.78,
+    marketcap: 567890123,
+    volume: 234567890,
+    volumeEqu: 765432,
+    circulatingSupply: 789012345,
+  },
+  {
+    id: "6",
+    rank: 6,
+    name: "Polkadot",
+    token: "DOT",
+    price: 45.67,
+    onehour: 0.34,
+    twentyfourhour: -0.56,
+    sevendays: 2.34,
+    marketcap: 678901234,
+    volume: 123456789,
+    volumeEqu: 987654,
+    circulatingSupply: 890123456,
   },
 ];
 
@@ -76,25 +149,87 @@ export function WatchlistTable() {
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
   const [loading, setLoading] = React.useState(false); // Loading state
-  const [data, setData] = React.useState(initialData); // Watchlist data state
+  const [favourites, setFavourites] = React.useState<{
+    [key: string]: boolean;
+  }>({});
+  const [data, setData] = React.useState(mockData); // Watchlist data state
   const router = useRouter();
+  const [watchlistData, setWatchlistData] = React.useState<Crypto[]>([]);
+  const userId = 1; //Mock User ID
+
+  React.useEffect(() => {
+    const fetchWatchlist = async () => {
+      try {
+        const response = await axios.get(`${WATCHLIST_API}/${userId}`);
+        const watchlist = response.data.cryptoIds;
+
+        // Filter the fullData to only include those in the watchlist
+        const filtered = mockData.filter((crypto) =>
+          watchlist.includes(crypto.token)
+        );
+        setWatchlistData(filtered);
+
+        // Assuming the API returns an array of crypto IDs
+        const favouritesMap = watchlist.reduce(
+          (acc: { [key: string]: boolean }, crypto: string) => {
+            acc[crypto] = true;
+            return acc;
+          },
+          {}
+        );
+
+        setFavourites(favouritesMap);
+      } catch (error) {
+        console.error("Failed to fetch watchlist:", error);
+      }
+    };
+
+    fetchWatchlist();
+  }, [userId]);
+
+  const handleRemoveFromWatchlist = async (cryptoId: string) => {
+    setLoading(true);
+    try {
+      // Send a request to remove the crypto from the watchlist
+      await axios.delete(
+        `${WATCHLIST_API}/${userId}/remove?cryptoId=${cryptoId}`
+      );
+
+      // Remove the crypto from the local state
+      setWatchlistData((prevData) =>
+        prevData.filter((coin) => coin.token !== cryptoId)
+      );
+
+      // Update the favourites state
+      setFavourites((prevFavourites) => {
+        const newFavourites = { ...prevFavourites };
+        delete newFavourites[cryptoId];
+        return newFavourites;
+      });
+    } catch (error) {
+      console.error("Failed to remove from watchlist:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const columns: ColumnDef<Crypto>[] = [
     {
       id: "actions",
       enableHiding: false,
       cell: ({ row }) => {
+        const isFavourited = favourites[row.original.token];
         return (
           <Button
             variant='ghost'
             className='h-8 w-8 p-0'
-            onClick={() => handleRemoveFromWatchlist(row.original.id)}
+            onClick={() => handleRemoveFromWatchlist(row.original.token)}
             disabled={loading} // Disable button during loading
           >
-            {loading ? (
-              <Loader2 className='h-4 w-4 animate-spin' />
-            ) : (
+            {isFavourited ? (
               <Star className='h-4 w-4 text-yellow-500 fill-yellow-500' />
+            ) : (
+              <Star className='h-4 w-4 text-black fill-white' />
             )}
           </Button>
         );
@@ -171,7 +306,7 @@ export function WatchlistTable() {
   ];
 
   const table = useReactTable({
-    data,
+    data: watchlistData,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -188,13 +323,6 @@ export function WatchlistTable() {
       rowSelection,
     },
   });
-
-  const handleRemoveFromWatchlist = async (id: string) => {
-    setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate loading
-    setData((prevData) => prevData.filter((coin) => coin.id !== id));
-    setLoading(false);
-  };
 
   return (
     <div className='w-full'>
@@ -219,7 +347,7 @@ export function WatchlistTable() {
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {watchlistData.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
