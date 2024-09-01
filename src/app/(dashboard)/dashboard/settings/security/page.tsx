@@ -1,3 +1,8 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Card,
@@ -7,13 +12,96 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Icons } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 import { DashboardSideBar } from "@/components/dashboard/dashboardSideBar";
 import { DashboardHeader } from "@/components/dashboard/dashboardHeader";
 
+const ACCOUNT_API = process.env.NEXT_PUBLIC_ACCOUNT_API;
+
 export default function SecuritySettings() {
+  const [userData, setUserData] = useState({
+    uid: "",
+    email: "",
+    currentPassword: "",
+    newPassword: "",
+    confirmNewPassword: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        // Redirect to login if no token
+        router.push("/login");
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await axios.get(`${ACCOUNT_API}/user?token=${token}`);
+
+        setUserData((prevState) => ({
+          ...prevState,
+          uid: response.data.uid,
+          email: response.data.email,
+        }));
+      } catch (err) {
+        setError("Failed to fetch user data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [router]);
+
+  const handleInputChange = (e: any) => {
+    setUserData({
+      ...userData,
+      [e.target.id]: e.target.value,
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    // Check if new password and confirm new password match
+    if (userData.newPassword !== userData.confirmNewPassword) {
+      setError("New password and confirm new password do not match.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("authToken");
+      await axios.put(
+        `${ACCOUNT_API}/${userData.uid}/updateUserEmailPassword`,
+        {
+          newEmail: userData.email,
+          newPassword: userData.newPassword,
+          oldPassword: userData.currentPassword,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      alert("Profile updated successfully!");
+    } catch (err) {
+      setError(
+        "Incorrect current password. Please check your current password."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className='flex min-h-screen w-full flex-col bg-muted/40'>
       <aside className='fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex'>
@@ -47,32 +135,67 @@ export default function SecuritySettings() {
               <div className='grid gap-6'>
                 <Card>
                   <CardHeader>
-                    <CardTitle>Change Password</CardTitle>
+                    <CardTitle>Email</CardTitle>
                     <CardDescription>
-                      Update your account password.
+                      Please enter a valid email
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <form>
+                  <form onSubmit={handleSubmit}>
+                    <CardContent>
                       <Input
+                        id='email'
+                        placeholder='Email'
+                        value={userData.email}
+                        onChange={handleInputChange}
+                      />
+                    </CardContent>
+                    <CardHeader>
+                      <CardTitle>Change Password</CardTitle>
+                      <CardDescription>
+                        Update your account password.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Input
+                        id='currentPassword'
                         type='password'
                         placeholder='Current Password'
+                        onChange={handleInputChange}
                         className='mb-4'
                       />
                       <Input
+                        id='newPassword'
                         type='password'
                         placeholder='New Password'
+                        onChange={handleInputChange}
                         className='mb-4'
                       />
                       <Input
+                        id='confirmNewPassword'
                         type='password'
                         placeholder='Confirm New Password'
+                        onChange={handleInputChange}
                       />
-                    </form>
-                  </CardContent>
-                  <CardFooter className='border-t px-6 py-4'>
-                    <Button>Update Password</Button>
-                  </CardFooter>
+                    </CardContent>
+                    <CardFooter className='border-t px-6 py-4'>
+                      <div className='flex-row'>
+                        {error && (
+                          <Alert variant='destructive'>
+                            <Icons.circleAlert className='h-4 w-4' />
+                            <AlertTitle>Error</AlertTitle>
+                            <AlertDescription>{error}</AlertDescription>
+                          </Alert>
+                        )}
+                        <Button
+                          type='submit'
+                          disabled={loading}
+                          className='mt-3'
+                        >
+                          {loading ? "Updating..." : "Update"}
+                        </Button>
+                      </div>
+                    </CardFooter>
+                  </form>
                 </Card>
               </div>
             </div>
