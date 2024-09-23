@@ -19,6 +19,7 @@
     "@radix-ui/react-tabs": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.1",
     "@radix-ui/react-tooltip": "^1.1.2",
+    "@stomp/stompjs": "^7.0.0",
     "@tanstack/react-table": "^8.19.3",
     "axios": "^1.7.4",
     "class-variance-authority": "^0.7.0",
@@ -29,6 +30,7 @@
     "react": "^18",
     "react-dom": "^18",
     "simplex-noise": "^4.0.3",
+    "sockjs-client": "^1.6.1",
     "tailwind-merge": "^2.4.0",
     "tailwindcss-animate": "^1.0.7"
   },
@@ -36,6 +38,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/sockjs-client": "^1.5.4",
     "eslint": "^8",
     "eslint-config-next": "14.2.5",
     "postcss": "^8",

@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const ACCOUNT_API = process.env.NEXT_PUBLIC_ACCOUNT_API;
+const ACCOUNT_API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export function SignUpForm() {
   const [formData, setFormData] = useState({
@@ -44,7 +44,7 @@ export function SignUpForm() {
     }
 
     try {
-      const response = await axios.post(`${ACCOUNT_API}/register`, {
+      const response = await axios.post(`${ACCOUNT_API}/account/register`, {
         fullName: formData.fullName,
         email: formData.email,
         password: formData.password,

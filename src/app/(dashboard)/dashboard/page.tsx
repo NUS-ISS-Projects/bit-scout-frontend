@@ -35,11 +35,11 @@ export default function Dashboard() {
             <CardContent>
               <MainPrices />
             </CardContent>
-            <CardFooter>
+            {/* <CardFooter>
               <div className='text-xs text-muted-foreground'>
                 Showing <strong>10</strong> of <strong>10066</strong>
               </div>
-            </CardFooter>
+            </CardFooter> */}
           </Card>
         </main>
       </div>

@@ -21,7 +21,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DashboardSideBar } from "@/components/dashboard/dashboardSideBar";
 import { DashboardHeader } from "@/components/dashboard/dashboardHeader";
 
-const ACCOUNT_API = process.env.NEXT_PUBLIC_ACCOUNT_API;
+const ACCOUNT_API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export default function Settings() {
   const [userData, setUserData] = useState({
@@ -46,7 +46,7 @@ export default function Settings() {
 
       try {
         setLoading(true);
-        const response = await axios.get(`${ACCOUNT_API}/user?token=${token}`);
+        const response = await axios.get(`${ACCOUNT_API}/account/user?token=${token}`);
 
         setUserData(() => ({
           uid: response.data.uid,
@@ -89,7 +89,7 @@ export default function Settings() {
     e.preventDefault();
     try {
       setLoading(true);
-      await axios.put(`${ACCOUNT_API}/${userData.uid}/updateUserDetails`, {
+      await axios.put(`${ACCOUNT_API}/account/${userData.uid}/updateUserDetails`, {
         name: userData.name,
         introduction: userData.introduction,
         avatar: userData.avatar,

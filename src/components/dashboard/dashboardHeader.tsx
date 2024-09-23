@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 
-const ACCOUNT_API = process.env.NEXT_PUBLIC_ACCOUNT_API;
+const ACCOUNT_API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export function DashboardHeader() {
   const [avatar, setAvatar] = useState("");
@@ -30,7 +30,7 @@ export function DashboardHeader() {
       }
 
       try {
-        const response = await axios.get(`${ACCOUNT_API}/user?token=${token}`);
+        const response = await axios.get(`${ACCOUNT_API}/account/user?token=${token}`);
         setAvatar(response.data.avatar || "/avatar.png");
       } catch (err) {
         console.error("Failed to fetch user data:", err);

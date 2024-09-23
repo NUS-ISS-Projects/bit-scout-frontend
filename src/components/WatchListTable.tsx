@@ -27,7 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const WATCHLIST_API = process.env.NEXT_PUBLIC_WATCHLIST_API;
+const WATCHLIST_API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 const mockData: Crypto[] = [
   {

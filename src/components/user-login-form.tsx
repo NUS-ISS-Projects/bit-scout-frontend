@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const ACCOUNT_API = process.env.NEXT_PUBLIC_ACCOUNT_API;
+const ACCOUNT_API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export function UserAuthForm() {
   const [email, setEmail] = useState("");
@@ -30,14 +30,14 @@ export function UserAuthForm() {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${ACCOUNT_API}/login`, {
+      const response = await axios.post(`${ACCOUNT_API}/account/login`, {
         email,
         password,
       });
 
       if (response.status === 200) {
         const token = response.data;
-        console.log(token);
+        // console.log(token);
 
         // Store the token in localStorage or cookies
         localStorage.setItem("authToken", token);

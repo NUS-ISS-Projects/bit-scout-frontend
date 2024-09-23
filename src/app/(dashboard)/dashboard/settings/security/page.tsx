@@ -20,7 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DashboardSideBar } from "@/components/dashboard/dashboardSideBar";
 import { DashboardHeader } from "@/components/dashboard/dashboardHeader";
 
-const ACCOUNT_API = process.env.NEXT_PUBLIC_ACCOUNT_API;
+const ACCOUNT_API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export default function SecuritySettings() {
   const [userData, setUserData] = useState({
@@ -45,7 +45,7 @@ export default function SecuritySettings() {
 
       try {
         setLoading(true);
-        const response = await axios.get(`${ACCOUNT_API}/user?token=${token}`);
+        const response = await axios.get(`${ACCOUNT_API}/account/user?token=${token}`);
 
         setUserData((prevState) => ({
           ...prevState,
@@ -82,7 +82,7 @@ export default function SecuritySettings() {
       setLoading(true);
       const token = localStorage.getItem("authToken");
       await axios.put(
-        `${ACCOUNT_API}/${userData.uid}/updateUserEmailPassword`,
+        `${ACCOUNT_API}/${userData.uid}/account/updateUserEmailPassword`,
         {
           newEmail: userData.email,
           newPassword: userData.newPassword,
