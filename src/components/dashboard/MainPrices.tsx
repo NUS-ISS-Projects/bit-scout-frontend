@@ -1,14 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-  Star,
-  Search,
-  MinusIcon,
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { ChevronDownIcon, ChevronUpIcon, Star, MinusIcon } from "lucide-react";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -38,10 +31,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import { useRouter } from "next/navigation";
+import Image from "next/image";
 import axios from "axios";
 import { Client } from "@stomp/stompjs";
 
-const WATCHLIST_API = process.env.NEXT_PUBLIC_API_BASE_URL;
+const WATCHLIST_API = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/watchlist`;
 const WS_ENDPOINT = `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace(
   "http",
   "ws"
@@ -72,6 +67,7 @@ export const amountFormatter = (value: any) => {
 };
 
 export function MainPrices() {
+  const router = useRouter();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -80,7 +76,6 @@ export function MainPrices() {
   const [favourites, setFavourites] = useState<{
     [key: string]: boolean;
   }>({});
-  const userId = 1; //Mock User ID
   const [cryptos, setCryptos] = useState<Crypto[]>([]);
   const dataBuffer = useRef<{ [token: string]: PriceUpdateDto }>({});
   const selectedCoins = [
@@ -118,29 +113,50 @@ export function MainPrices() {
   };
 
   const fetchWatchlist = async () => {
+    const token = localStorage.getItem("authToken");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    const config = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    };
     try {
-      const response = await axios.get(`${WATCHLIST_API}/${userId}`);
+      const response = await axios.get(`${WATCHLIST_API}/getWatchList`, config);
       const watchlist = response.data.cryptoIds;
       const favouritesMap = watchlist.reduce(
         (acc: { [key: string]: boolean }, crypto: string) => {
-          acc[crypto] = true;
+          acc[crypto.toLowerCase()] = true;
           return acc;
         },
         {}
       );
-
       setFavourites(favouritesMap);
-    } catch (error) {
-      console.error("Failed to fetch watchlist:", error);
+    } catch (error: any) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        console.log("Watchlist not found, creating a new one...");
+        try {
+          await axios.post(
+            `${WATCHLIST_API}/api/watchlist/create`,
+            { cryptoIds: [] },
+            config
+          );
+
+          setFavourites({});
+        } catch (creationError) {
+          console.error("Failed to create a new watchlist:", creationError);
+        }
+      } else {
+        console.error("Failed to fetch watchlist:", error);
+      }
     }
   };
 
   const handleSubscribe = async () => {
     try {
-      const response = await axios.post(
-        `${WATCHLIST_API}/api/v1/coin/subscribe`,
-        selectedCoins
-      );
+      await axios.post(`${WATCHLIST_API}/api/v1/coin/subscribe`, selectedCoins);
       // console.log(response.data);
     } catch (error) {
       console.error("Error subscribing to coins:", error);
@@ -149,6 +165,7 @@ export function MainPrices() {
 
   useEffect(() => {
     handleSubscribe();
+    fetchWatchlist();
   }, []);
 
   useEffect(() => {
@@ -157,16 +174,18 @@ export function MainPrices() {
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
-      debug: (str) => {
-        console.log(str);
+      debug: () => {
+        null;
       },
+      // debug: (str) => {
+      //   console.log(str);
+      // },
     });
     stompClient.onConnect = () => {
       console.log("Connected to STOMP over WebSocket");
       stompClient.subscribe("/topic/price-updates", (message) => {
         if (message.body) {
           const data = JSON.parse(message.body);
-          console.log(data);
           dataBuffer.current[data.token.toUpperCase()] = data;
         }
       });
@@ -225,25 +244,42 @@ export function MainPrices() {
       stompClient.deactivate();
       clearInterval(intervalId);
     };
-
-    //fetchWatchlist();
   }, [selectedCoins]);
 
   const toggleFavourite = async (cryptoId: string) => {
     setLoading(true);
 
     try {
-      // Make a POST request to add the crypto to the user's watchlist
-      await axios.post(`${WATCHLIST_API}/${userId}/add?cryptoId=${cryptoId}`);
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        params: {
+          cryptoId: cryptoId.toLowerCase(),
+        },
+      };
 
-      // Update the local state after a successful POST request
+      const isFavourited = favourites[cryptoId.toLowerCase()];
+
+      if (isFavourited) {
+        // Remove from favourites
+        await axios.delete(`${WATCHLIST_API}/remove`, config);
+      } else {
+        // Add to favourites
+        await axios.post(`${WATCHLIST_API}/add`, null, config);
+      }
+
       setFavourites((prev) => ({
         ...prev,
-        [cryptoId]: true,
+        [cryptoId.toLowerCase()]: !isFavourited,
       }));
     } catch (error) {
       console.error("Failed to update watchlist:", error);
-      // Optionally handle the error (e.g., show a notification)
     } finally {
       setLoading(false);
     }
@@ -254,12 +290,12 @@ export function MainPrices() {
       id: "actions",
       enableHiding: false,
       cell: ({ row }) => {
-        const isFavourited = favourites[row.original.token];
+        const isFavourited = favourites[row.original.token.toLowerCase()];
         return (
           <Button
             variant='ghost'
             className='h-8 w-8 p-0'
-            onClick={() => toggleFavourite(row.original.token)}
+            onClick={() => toggleFavourite(row.original.token.toLowerCase())}
             disabled={loading}
           >
             {isFavourited ? (
@@ -284,8 +320,17 @@ export function MainPrices() {
       cell: ({ row }) => {
         const name = row.getValue("name") as string;
         const tokenSymbol = row.original.token.replace("USDT", "");
+        const imageName = tokenSymbol.toLowerCase();
+        const imageSrc = `/coins/${imageName}.png`;
         return (
-          <div className='capitalize'>
+          <div className='capitalize flex items-center'>
+            <Image
+              src={imageSrc}
+              width={24}
+              height={24}
+              alt={`${name} logo`}
+              className='mr-5'
+            />
             {name} {tokenSymbol}
           </div>
         );
@@ -320,56 +365,6 @@ export function MainPrices() {
         );
       },
     },
-    // {
-    //   accessorKey: "onehour",
-    //   header: "1h %",
-    //   cell: ({ row }) => (
-    //     <div className='capitalize'>{row.getValue("onehour")} %</div>
-    //   ),
-    // },
-    // {
-    //   accessorKey: "twentyfourhour",
-    //   header: "24h %",
-    //   cell: ({ row }) => (
-    //     <div className='capitalize'>{row.getValue("twentyfourhour")} %</div>
-    //   ),
-    // },
-    // {
-    //   accessorKey: "sevendays",
-    //   header: "7d %",
-    //   cell: ({ row }) => (
-    //     <div className='capitalize'>{row.getValue("sevendays")} %</div>
-    //   ),
-    // },
-    // {
-    //   accessorKey: "marketcap",
-    //   header: "Market Cap",
-    //   cell: ({ row }) => (
-    //     <div className='capitalize'>$ {row.getValue("marketcap")}</div>
-    //   ),
-    // },
-    // {
-    //   accessorKey: "volume",
-    //   header: "Volume(24h)",
-    //   cell: ({ row }) => (
-    //     <div className='capitalize'>
-    //       ${amountFormatter(row.getValue("volume"))}
-    //       <div className='text-xs text-gray-500 '>
-    //         {amountFormatter(row.original.volumeEqu)} {row.original.token}
-    //       </div>
-    //     </div>
-    //   ),
-    // },
-    // {
-    //   accessorKey: "circulatingSupply",
-    //   header: "Circulating Supply",
-    //   cell: ({ row }) => (
-    //     <div className='capitalize'>
-    //       {amountFormatter(row.getValue("circulatingSupply"))} {""}
-    //       {row.original.token}
-    //     </div>
-    //   ),
-    // },
   ];
 
   const table = useReactTable({
@@ -394,18 +389,6 @@ export function MainPrices() {
   return (
     <div className='w-full'>
       <div className='flex items-center py-4'>
-        <div className='relative max-w-sm'>
-          <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground' />
-          <Input
-            type='search'
-            placeholder='Search for a market'
-            value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-            onChange={(event) =>
-              table.getColumn("name")?.setFilterValue(event.target.value)
-            }
-            className='pl-10'
-          />
-        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant='outline' className='ml-auto'>
