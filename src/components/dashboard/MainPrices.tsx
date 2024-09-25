@@ -36,6 +36,7 @@ import Image from "next/image";
 import axios from "axios";
 import { Client } from "@stomp/stompjs";
 
+const SUBSCRIBE_API = process.env.NEXT_PUBLIC_API_BASE_URL;
 const WATCHLIST_API = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/watchlist`;
 const WS_ENDPOINT = `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace(
   "http",
@@ -156,8 +157,7 @@ export function MainPrices() {
 
   const handleSubscribe = async () => {
     try {
-      await axios.post(`${WATCHLIST_API}/api/v1/coin/subscribe`, selectedCoins);
-      // console.log(response.data);
+      await axios.post(`${SUBSCRIBE_API}/api/v1/coin/subscribe`, selectedCoins);
     } catch (error) {
       console.error("Error subscribing to coins:", error);
     }
