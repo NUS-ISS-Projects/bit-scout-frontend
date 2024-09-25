@@ -4,9 +4,45 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ChevronDownIcon, ChevronUpIcon, ChevronLeftIcon } from "lucide-react";
 
 import { DashboardSideBar } from "@/components/dashboard/dashboardSideBar";
 import { DashboardHeader } from "@/components/dashboard/dashboardHeader";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import Image from "next/image";
+
+const selectedCoins = [
+  "btcusdt", // #1 Bitcoin
+  "ethusdt", // #2 Ethereum
+  "bnbusdt", // #3 BNB
+  "solusdt", // #4 Solana
+  "usdcusdt", // #5 USD Coin
+  "xrpusdt", // #6 XRP
+  "dogeusdt", // #7 Dogecoin
+  "tonusdt", // #8 Toncoin
+  "trxusdt", // #9 Tron
+  "adausdt", // #10 Cardano
+];
+
+const tokenNameMap: Record<string, string> = {
+  BTCUSDT: "Bitcoin",
+  ETHUSDT: "Ethereum",
+  BNBUSDT: "Binance Coin",
+  SOLUSDT: "Solana",
+  USDCUSDT: "USD Coin",
+  XRPUSDT: "Ripple",
+  DOGEUSDT: "Dogecoin",
+  TONUSDT: "Toncoin",
+  TRXUSDT: "Tron",
+  ADAUSDT: "Cardano",
+};
 
 export default function AddAlert() {
   const [coin, setCoin] = useState("");
@@ -17,6 +53,10 @@ export default function AddAlert() {
 
   const handleAddAlert = (e: any) => {
     e.preventDefault();
+    router.push("/dashboard/alerts");
+  };
+
+  const handleBackToAlert = () => {
     router.push("/dashboard/alerts");
   };
 
@@ -35,19 +75,61 @@ export default function AddAlert() {
             <h1 className='text-2xl font-bold mb-6 text-center'>
               Add New Alert
             </h1>
+            <Button
+              variant='outline'
+              size='icon'
+              className='mb-6'
+              onClick={handleBackToAlert}
+            >
+              <ChevronLeftIcon className='h-4 w-4' />
+            </Button>
             <form>
-              <Input
-                placeholder='Coin'
-                value={coin}
-                onChange={(e) => setCoin(e.target.value)}
-                className='mb-4'
-              />
-              <Input
-                placeholder='Alert Type'
-                value={alertType}
-                onChange={(e) => setAlertType(e.target.value)}
-                className='mb-4'
-              />
+              <Select>
+                <SelectTrigger className='mb-4'>
+                  <SelectValue placeholder='Select a Coin' />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedCoins.map((coin) => {
+                    const tokenSymbol = coin.replace("usdt", "").toUpperCase();
+                    const imageName = tokenSymbol.toLowerCase();
+                    const imageSrc = `/coins/${imageName}.png`;
+
+                    return (
+                      <SelectItem key={coin} value={coin}>
+                        <div className='flex items-center'>
+                          <Image
+                            src={imageSrc}
+                            width={24}
+                            height={24}
+                            alt={`${tokenNameMap[tokenSymbol + "USDT"]} logo`}
+                            className='mr-2'
+                          />
+                          {tokenNameMap[tokenSymbol + "USDT"]}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              <Select>
+                <SelectTrigger className='mb-4'>
+                  <SelectValue placeholder='Alert Type' />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='price rise to'>
+                    <div className='flex items-center'>
+                      <ChevronUpIcon className='h-4 w-4 mr-2 text-green-600' />
+                      Price increase to
+                    </div>
+                  </SelectItem>
+                  <SelectItem value='price fall to'>
+                    <div className='flex items-center'>
+                      <ChevronDownIcon className='h-4 w-4 mr-2 text-red-600' />
+                      Price decrease to
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
               <Input
                 placeholder='Alert Value'
                 value={alertValue}

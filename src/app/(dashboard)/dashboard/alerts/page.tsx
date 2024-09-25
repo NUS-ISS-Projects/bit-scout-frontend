@@ -33,11 +33,6 @@ export default function Alerts() {
             <CardContent>
               <AlertsTable />
             </CardContent>
-            <CardFooter>
-              <div className='text-xs text-muted-foreground'>
-                Showing <strong>5</strong> of <strong>50</strong>
-              </div>
-            </CardFooter>
           </Card>
         </main>
       </div>

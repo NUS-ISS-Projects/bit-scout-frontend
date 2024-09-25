@@ -24,13 +24,14 @@ export function DashboardHeader() {
     const fetchUserData = async () => {
       const token = localStorage.getItem("authToken");
       if (!token) {
-        // Redirect to login if no token
         router.push("/login");
         return;
       }
 
       try {
-        const response = await axios.get(`${ACCOUNT_API}/account/user?token=${token}`);
+        const response = await axios.get(
+          `${ACCOUNT_API}/account/user?token=${token}`
+        );
         setAvatar(response.data.avatar || "/avatar.png");
       } catch (err) {
         console.error("Failed to fetch user data:", err);
