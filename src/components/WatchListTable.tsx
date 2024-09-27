@@ -71,7 +71,6 @@ export function WatchlistTable() {
   }>({});
   const router = useRouter();
   const [watchlistData, setWatchlistData] = useState<Crypto[]>([]);
-  const userId = 1; //Mock User ID
 
   const dataBuffer = useRef<{ [token: string]: PriceUpdateDto }>({});
   const selectedCoins = [

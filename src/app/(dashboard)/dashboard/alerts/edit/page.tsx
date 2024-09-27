@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -46,29 +46,34 @@ const tokenNameMap: Record<string, string> = {
 };
 
 const NOTIFICATION_API = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/notifications`;
+const USER_API = `${process.env.NEXT_PUBLIC_API_BASE_URL}/account/userId`;
 
-export default function AddAlert() {
+export default function EditAlert() {
   const [coin, setCoin] = useState("");
   const [alertType, setAlertType] = useState("");
   const [alertValue, setAlertValue] = useState("0.00");
   const [remarks, setRemarks] = useState("");
   const router = useRouter();
 
-  const handleAddAlert = async (e: any) => {
+  const handleUpdateAlert = async (e: any) => {
     e.preventDefault();
-    const token = localStorage.getItem("authToken");
-    if (!token) {
+    const authToken = localStorage.getItem("authToken");
+    if (!authToken) {
       router.push("/login");
       return;
     }
     const config = {
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${authToken}`,
         "Content-Type": "application/json",
       },
     };
 
+    const userIdResponse = await axios.get(`${USER_API}?token=${authToken}`);
+    const userId = userIdResponse.data;
+
     const data = {
+      userId: userId,
       token: coin,
       notificationType: alertType,
       notificationValue: parseFloat(alertValue),
@@ -76,12 +81,11 @@ export default function AddAlert() {
     };
 
     try {
-      const response = await axios.post(
-        `${NOTIFICATION_API}/add`,
+      const response = await axios.put(
+        `${NOTIFICATION_API}/edit/${1}`,
         data,
         config
       );
-      console.log("Notification added successfully:", response.data);
       router.push("/dashboard/alerts");
     } catch (error: any) {
       console.error(error);
@@ -91,6 +95,48 @@ export default function AddAlert() {
   const handleBackToAlert = () => {
     router.push("/dashboard/alerts");
   };
+
+  const fetchAlerts = async () => {
+    const authToken = localStorage.getItem("authToken");
+    if (!authToken) {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      const response = await axios.get(`${NOTIFICATION_API}/list`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+      const userIdResponse = await axios.get(`${USER_API}?token=${authToken}`);
+      const userId = userIdResponse.data;
+
+      const filteredAlerts = response.data.filter(
+        (alert: any) => alert.userId === userId
+      );
+
+      if (filteredAlerts.length > 0) {
+        const alert = filteredAlerts[0];
+
+        setCoin(alert.token);
+        setAlertType(alert.notificationType);
+        setAlertValue(alert.notificationValue.toString());
+        setRemarks(alert.remarks);
+      } else {
+        console.log("No alerts found for this user.");
+      }
+    } catch (error: any) {
+      console.error(
+        "Error fetching alerts:",
+        error.response?.data || error.message || error
+      );
+    }
+  };
+
+  useEffect(() => {
+    fetchAlerts();
+  }, []);
 
   return (
     <div className='flex min-h-screen w-full flex-col bg-muted/40'>
@@ -198,7 +244,7 @@ export default function AddAlert() {
                 onChange={(e) => setRemarks(e.target.value)}
                 className='mb-4'
               />
-              <Button onClick={handleAddAlert}>Add Alert</Button>
+              <Button onClick={handleUpdateAlert}>Update Alert</Button>
             </form>
           </div>
         </main>

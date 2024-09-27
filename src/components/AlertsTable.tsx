@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Trash, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -36,31 +36,57 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  AlertDialogDescription,
 } from "@/components/ui/alert-dialog";
+import { useToast } from "@/components/hooks/use-toast";
+import { useNotification } from "@/contexts/NotificationContext";
 
-const data: Alert[] = [
-  {
-    id: "1",
-    name: "Bitcoin",
-    token: "BTC",
-    alertType: "Price fail to",
-    currentPrice: 64732.19,
-    alertValue: 64732.19,
-    remarks: "This is a remark",
-  },
-];
+import axios from "axios";
+import Image from "next/image";
+import { Client } from "@stomp/stompjs";
+const NOTIFICATION_API = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/notifications`;
+const USER_API = `${process.env.NEXT_PUBLIC_API_BASE_URL}/account/userId`;
+const WS_ENDPOINT_NOTIFICATIONS = `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace(
+  "http",
+  "ws"
+)}/notifications`;
+const WS_ENDPOINT_COIN = `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace(
+  "http",
+  "ws"
+)}/coin`;
+
+const tokenNameMap: Record<string, string> = {
+  BTCUSDT: "Bitcoin",
+  ETHUSDT: "Ethereum",
+  BNBUSDT: "Binance Coin",
+  SOLUSDT: "Solana",
+  USDCUSDT: "USD Coin",
+  XRPUSDT: "Ripple",
+  DOGEUSDT: "Dogecoin",
+  TONUSDT: "Toncoin",
+  TRXUSDT: "Tron",
+  ADAUSDT: "Cardano",
+};
 
 export type Alert = {
   id: string;
   name: string;
   token: string;
   alertType: string;
-  currentPrice: number;
+  currentPrice: number | null;
   alertValue: number;
   remarks: string;
+  alertTriggered?: boolean;
+  lastTriggeredAt?: number | null;
+};
+
+export type PriceUpdateDto = {
+  token: string;
+  price: number;
 };
 
 export const amountFormatter = (value: any) => {
+  if (value == null || isNaN(value)) return "N/A";
   const hasDecimals = value % 1 !== 0;
   return new Intl.NumberFormat("en-US", {
     style: "decimal",
@@ -71,14 +97,209 @@ export const amountFormatter = (value: any) => {
 
 export function AlertsTable() {
   const router = useRouter();
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = React.useState({});
-  const [manageMode, setManageMode] = React.useState(false);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = useState({});
+  const [manageMode, setManageMode] = useState(false);
+
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const dataBuffer = useRef<{ [token: string]: PriceUpdateDto }>({});
+
+  const fetchAlerts = async () => {
+    const authToken = localStorage.getItem("authToken");
+    if (!authToken) {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      const response = await axios.get(`${NOTIFICATION_API}/list`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+      const userIdResponse = await axios.get(`${USER_API}?token=${authToken}`);
+      const userId = userIdResponse.data;
+
+      const filteredAlerts = response.data.filter(
+        (alert: any) => alert.userId === userId
+      );
+
+      const mappedAlerts = filteredAlerts.map((alert: any) => ({
+        name: tokenNameMap[alert.token.toUpperCase()] || alert.token,
+        token: alert.token.toUpperCase(),
+        alertType: alert.notificationType,
+        alertValue: alert.notificationValue,
+        remarks: alert.remarks,
+      }));
+      setAlerts(mappedAlerts);
+    } catch (error: any) {
+      console.error(
+        "Error fetching alerts:",
+        error.response?.data || error.message || error
+      );
+    }
+  };
+
+  useEffect(() => {
+    fetchAlerts();
+  }, []);
+
+  useEffect(() => {
+    if (alerts.length === 0) return;
+
+    const tokensSet = new Set(alerts.map((alert) => alert.token.toUpperCase()));
+    const stompClient = new Client({
+      webSocketFactory: () => new WebSocket(WS_ENDPOINT_COIN),
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+      debug: () => {
+        null;
+      },
+    });
+
+    stompClient.onConnect = () => {
+      console.log("Connected to COIN WebSocket");
+
+      stompClient.subscribe("/topic/price-updates", (message) => {
+        if (message.body) {
+          const data = JSON.parse(message.body);
+          const token = data.token.toUpperCase();
+
+          if (tokensSet.has(token)) {
+            dataBuffer.current[token] = data;
+          }
+        }
+      });
+    };
+    stompClient.activate();
+
+    const intervalId = setInterval(() => {
+      const bufferedData = dataBuffer.current;
+      dataBuffer.current = {};
+
+      if (Object.keys(bufferedData).length > 0) {
+        setAlerts((prevAlerts) =>
+          prevAlerts.map((alert) => {
+            const token = alert.token.toUpperCase();
+            if (bufferedData[token]) {
+              const currentPrice = bufferedData[token].price;
+              return {
+                ...alert,
+                currentPrice: currentPrice,
+              };
+            } else {
+              return alert;
+            }
+          })
+        );
+      }
+    }, 1000);
+
+    return () => {
+      stompClient.deactivate();
+      clearInterval(intervalId);
+    };
+  }, [alerts]);
+
+  useEffect(() => {
+    if (alerts.length === 0) return;
+
+    const timeoutId = setTimeout(() => {
+      const triggeredAlerts: { alert: Alert; currentPrice: number }[] = [];
+
+      const updatedAlerts = alerts.map((alert) => {
+        const { currentPrice, lastTriggeredAt } = alert;
+        if (currentPrice == null) {
+          return alert;
+        }
+
+        const shouldTriggerAlert =
+          (alert.alertType.toLowerCase() === "price rise to" &&
+            currentPrice >= alert.alertValue) ||
+          (alert.alertType.toLowerCase() === "price fall to" &&
+            currentPrice <= alert.alertValue);
+
+        const now = Date.now();
+        const timeSinceLastTrigger = lastTriggeredAt
+          ? now - lastTriggeredAt
+          : Infinity;
+
+        console.log(timeSinceLastTrigger);
+
+        if (shouldTriggerAlert && timeSinceLastTrigger >= 10000) {
+          triggeredAlerts.push({ alert, currentPrice });
+          return {
+            ...alert,
+            lastTriggeredAt: now,
+          };
+        }
+
+        return alert;
+      });
+
+      setAlerts(updatedAlerts);
+      triggeredAlerts.forEach(({ alert, currentPrice }) => {
+        alertUser(alert, currentPrice);
+      });
+    }, 1000);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [alerts]);
+
+  const { toast } = useToast();
+  const { notifications, setNotifications } = useNotification();
+
+  const alertUser = (alert: Alert, currentPrice: number) => {
+    const message = `Current Price (${amountFormatter(currentPrice)}) ${
+      alert.alertType
+    } ${amountFormatter(alert.alertValue)}.`;
+
+    setNotifications((prev) => prev + 1);
+
+    toast({
+      title: `Alert Triggered for ${alert.name} (${alert.token})`,
+      description: message,
+      variant: "default",
+    });
+  };
+
+  const handleDeleteAlert = async (selectedAlertIds: string[]) => {
+    const authToken = localStorage.getItem("authToken");
+    if (!authToken) {
+      router.push("/login");
+      return;
+    }
+
+    if (!selectedAlertIds.length) {
+      alert("No alerts selected for deletion!");
+      return;
+    }
+
+    try {
+      await Promise.all(
+        selectedAlertIds.map((alertId) =>
+          axios.delete(`${NOTIFICATION_API}/delete/${alertId}`, {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+            },
+          })
+        )
+      );
+
+      console.log("Selected notifications deleted successfully.");
+      fetchAlerts();
+    } catch (error: any) {
+      console.error(
+        "Error deleting alerts:",
+        error.response?.data || error.message || error
+      );
+    }
+  };
 
   const columns: ColumnDef<Alert>[] = [
     ...(manageMode
@@ -88,21 +309,8 @@ export function AlertsTable() {
             header: ({ table }: { table: any }) => (
               <input
                 type='checkbox'
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    table
-                      .getRowModel()
-                      .rows.forEach(({ row }: { row: any }) =>
-                        row.toggleSelected(true)
-                      );
-                  } else {
-                    table
-                      .getRowModel()
-                      .rows.forEach(({ row }: { row: any }) =>
-                        row.toggleSelected(false)
-                      );
-                  }
-                }}
+                checked={table.getIsAllRowsSelected()}
+                onChange={table.getToggleAllRowsSelectedHandler()}
               />
             ),
             cell: ({ row }: { row: any }) => (
@@ -118,11 +326,24 @@ export function AlertsTable() {
     {
       accessorKey: "name",
       header: "Name",
-      cell: ({ row }) => (
-        <div className='capitalize'>
-          {row.getValue("name")} {row.original.token}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const name = row.getValue("name") as string;
+        const tokenSymbol = row.original.token.replace("USDT", "");
+        const imageName = tokenSymbol.toLowerCase();
+        const imageSrc = `/coins/${imageName}.png`;
+        return (
+          <div className='capitalize flex items-center'>
+            <Image
+              src={imageSrc}
+              width={24}
+              height={24}
+              alt={`${name} logo`}
+              className='mr-5'
+            />
+            {name} {tokenSymbol}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "alertType",
@@ -143,11 +364,12 @@ export function AlertsTable() {
     {
       accessorKey: "currentPrice",
       header: "Current Price",
-      cell: ({ row }) => (
-        <div className='capitalize'>
-          ${amountFormatter(row.getValue("currentPrice"))}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const currentPrice = row.getValue("currentPrice");
+        return (
+          <div className='capitalize'>${amountFormatter(currentPrice)}</div>
+        );
+      },
     },
     {
       accessorKey: "remarks",
@@ -156,10 +378,26 @@ export function AlertsTable() {
         <div className='capitalize'>{row.getValue("remarks")}</div>
       ),
     },
+    ...(manageMode
+      ? [
+          {
+            id: "edit",
+            header: "Edit",
+            cell: ({ row }: { row: any }) => (
+              <Button
+                className='text-white'
+                onClick={() => router.push(`/dashboard/alerts/edit`)}
+              >
+                Edit
+              </Button>
+            ),
+          },
+        ]
+      : []),
   ];
 
   const table = useReactTable({
-    data,
+    data: alerts,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -204,18 +442,28 @@ export function AlertsTable() {
         {manageMode && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button className='ml-3 bg-red-600 hover:bg-red-400'>
+              <Button
+                className='ml-3 bg-red-600 hover:bg-red-400'
+                disabled={!Object.keys(rowSelection).length}
+              >
                 <Trash className='mr-2 h-4 w-4' />
                 Delete Alert
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent>
+            <AlertDialogContent aria-describedby='delete-description'>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete the alert?</AlertDialogTitle>
+                <AlertDialogDescription id='delete-description'>
+                  This action cannot be undone. This will permanently delete the
+                  selected alerts from your list.
+                </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction className=' bg-red-600 hover:bg-red-400'>
+                <AlertDialogAction
+                  className=' bg-red-600 hover:bg-red-400'
+                  onClick={() => handleDeleteAlert(Object.keys(rowSelection))}
+                >
                   <Trash className='mr-2 h-4 w-4' />
                   Delete
                 </AlertDialogAction>

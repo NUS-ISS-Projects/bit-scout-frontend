@@ -5,6 +5,10 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
+import { ToastProvider } from "@/components/ui/toast";
+import { Toaster } from "@/components/ui/toaster";
+import { NotificationProvider } from "@/contexts/NotificationContext";
+
 export const metadata: Metadata = {
   title: siteConfig.name,
   description: siteConfig.description,
@@ -19,8 +23,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang='en'>
-      <body className={inter.className}>{children}</body>
-    </html>
+    <ToastProvider>
+      <NotificationProvider>
+        <html lang='en'>
+          <body className={inter.className}>
+            {children} <Toaster />{" "}
+          </body>
+        </html>
+      </NotificationProvider>
+    </ToastProvider>
   );
 }
