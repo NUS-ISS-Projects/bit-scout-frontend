@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ChevronDownIcon, ChevronUpIcon, ChevronLeftIcon } from "lucide-react";
@@ -54,6 +54,8 @@ export default function EditAlert() {
   const [alertValue, setAlertValue] = useState("0.00");
   const [remarks, setRemarks] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tokenParam = searchParams.get("token");
 
   const handleUpdateAlert = async (e: any) => {
     e.preventDefault();
@@ -81,11 +83,7 @@ export default function EditAlert() {
     };
 
     try {
-      const response = await axios.put(
-        `${NOTIFICATION_API}/edit/${1}`,
-        data,
-        config
-      );
+      await axios.post(`${NOTIFICATION_API}/add`, data, config);
       router.push("/dashboard/alerts");
     } catch (error: any) {
       console.error(error);
@@ -104,7 +102,7 @@ export default function EditAlert() {
     }
 
     try {
-      const response = await axios.get(`${NOTIFICATION_API}/list`, {
+      const response = await axios.get(`${NOTIFICATION_API}/getUserList`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -113,7 +111,8 @@ export default function EditAlert() {
       const userId = userIdResponse.data;
 
       const filteredAlerts = response.data.filter(
-        (alert: any) => alert.userId === userId
+        (alert: any) =>
+          alert.userId === userId && alert.token.toLowerCase() === tokenParam
       );
 
       if (filteredAlerts.length > 0) {

@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Trash, Search } from "lucide-react";
+import {
+  Trash,
+  Search,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  MinusIcon,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   ColumnDef,
@@ -68,16 +74,25 @@ const tokenNameMap: Record<string, string> = {
   ADAUSDT: "Cardano",
 };
 
+interface NotificationDto {
+  userId: string;
+  token: string;
+  notificationType: string;
+  notificationValue: number;
+  remarks: string;
+  currentPrice: number;
+}
+
 export type Alert = {
-  id: string;
+  id?: string;
   name: string;
   token: string;
   alertType: string;
   currentPrice: number | null;
+  previousPrice: number | null;
   alertValue: number;
   remarks: string;
-  alertTriggered?: boolean;
-  lastTriggeredAt?: number | null;
+  lastNotifiedAt?: number | null;
 };
 
 export type PriceUpdateDto = {
@@ -104,7 +119,21 @@ export function AlertsTable() {
   const [manageMode, setManageMode] = useState(false);
 
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const dataBuffer = useRef<{ [token: string]: PriceUpdateDto }>({});
+  const [userId, setUserId] = useState("");
+
+  const fetchUserId = async () => {
+    const authToken = localStorage.getItem("authToken");
+    if (!authToken) {
+      router.push("/login");
+      return;
+    }
+    try {
+      const userIdResponse = await axios.get(`${USER_API}?token=${authToken}`);
+      setUserId(userIdResponse.data);
+    } catch (error) {
+      console.error("Error fetching user ID:", error);
+    }
+  };
 
   const fetchAlerts = async () => {
     const authToken = localStorage.getItem("authToken");
@@ -114,19 +143,12 @@ export function AlertsTable() {
     }
 
     try {
-      const response = await axios.get(`${NOTIFICATION_API}/list`, {
+      const response = await axios.get(`${NOTIFICATION_API}/getUserList`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
       });
-      const userIdResponse = await axios.get(`${USER_API}?token=${authToken}`);
-      const userId = userIdResponse.data;
-
-      const filteredAlerts = response.data.filter(
-        (alert: any) => alert.userId === userId
-      );
-
-      const mappedAlerts = filteredAlerts.map((alert: any) => ({
+      const mappedAlerts = response.data.map((alert: any) => ({
         name: tokenNameMap[alert.token.toUpperCase()] || alert.token,
         token: alert.token.toUpperCase(),
         alertType: alert.notificationType,
@@ -144,14 +166,14 @@ export function AlertsTable() {
 
   useEffect(() => {
     fetchAlerts();
+    fetchUserId();
   }, []);
 
+  // Notification WebSocket
   useEffect(() => {
-    if (alerts.length === 0) return;
-
-    const tokensSet = new Set(alerts.map((alert) => alert.token.toUpperCase()));
+    if (!userId) return;
     const stompClient = new Client({
-      webSocketFactory: () => new WebSocket(WS_ENDPOINT_COIN),
+      webSocketFactory: () => new WebSocket(WS_ENDPOINT_NOTIFICATIONS),
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
@@ -161,129 +183,143 @@ export function AlertsTable() {
     });
 
     stompClient.onConnect = () => {
-      console.log("Connected to COIN WebSocket");
+      console.log("Connected to Notification WebSocket");
 
-      stompClient.subscribe("/topic/price-updates", (message) => {
+      stompClient.subscribe(`/topic/notifications/${userId}`, (message) => {
         if (message.body) {
           const data = JSON.parse(message.body);
-          const token = data.token.toUpperCase();
-
-          if (tokensSet.has(token)) {
-            dataBuffer.current[token] = data;
-          }
+          handleNotification(data);
         }
       });
     };
     stompClient.activate();
 
-    const intervalId = setInterval(() => {
-      const bufferedData = dataBuffer.current;
-      dataBuffer.current = {};
-
-      if (Object.keys(bufferedData).length > 0) {
-        setAlerts((prevAlerts) =>
-          prevAlerts.map((alert) => {
-            const token = alert.token.toUpperCase();
-            if (bufferedData[token]) {
-              const currentPrice = bufferedData[token].price;
-              return {
-                ...alert,
-                currentPrice: currentPrice,
-              };
-            } else {
-              return alert;
-            }
-          })
-        );
-      }
-    }, 1000);
-
     return () => {
       stompClient.deactivate();
-      clearInterval(intervalId);
     };
+  }, [userId]);
+
+  const tokensSetRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    tokensSetRef.current = new Set(
+      alerts.map((alert) => alert.token.toUpperCase())
+    );
   }, [alerts]);
 
+  // Coin WebSocket
   useEffect(() => {
     if (alerts.length === 0) return;
 
-    const timeoutId = setTimeout(() => {
-      const triggeredAlerts: { alert: Alert; currentPrice: number }[] = [];
+    // const tokensSet = new Set(alerts.map((alert) => alert.token.toUpperCase()));
+    const stompClientCoin = new Client({
+      webSocketFactory: () => new WebSocket(WS_ENDPOINT_COIN),
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+      debug: () => null,
+    });
 
-      const updatedAlerts = alerts.map((alert) => {
-        const { currentPrice, lastTriggeredAt } = alert;
-        if (currentPrice == null) {
-          return alert;
+    stompClientCoin.onConnect = () => {
+      console.log("Connected to Coin WebSocket");
+      stompClientCoin.subscribe("/topic/price-updates", (message) => {
+        if (message.body) {
+          const data: PriceUpdateDto = JSON.parse(message.body);
+          const token = data.token.toUpperCase();
+
+          if (tokensSetRef.current.has(token)) {
+            setAlerts((prevAlerts) =>
+              prevAlerts.map((alert) => {
+                if (alert.token.toUpperCase() === token) {
+                  const previousPrice = alert.currentPrice ?? data.price;
+                  return {
+                    ...alert,
+                    previousPrice: previousPrice,
+                    currentPrice: data.price,
+                  };
+                }
+                return alert;
+              })
+            );
+          }
         }
-
-        const shouldTriggerAlert =
-          (alert.alertType.toLowerCase() === "price rise to" &&
-            currentPrice >= alert.alertValue) ||
-          (alert.alertType.toLowerCase() === "price fall to" &&
-            currentPrice <= alert.alertValue);
-
-        const now = Date.now();
-        const timeSinceLastTrigger = lastTriggeredAt
-          ? now - lastTriggeredAt
-          : Infinity;
-
-        console.log(timeSinceLastTrigger);
-
-        if (shouldTriggerAlert && timeSinceLastTrigger >= 10000) {
-          triggeredAlerts.push({ alert, currentPrice });
-          return {
-            ...alert,
-            lastTriggeredAt: now,
-          };
-        }
-
-        return alert;
       });
+    };
 
-      setAlerts(updatedAlerts);
-      triggeredAlerts.forEach(({ alert, currentPrice }) => {
-        alertUser(alert, currentPrice);
-      });
-    }, 1000);
+    stompClientCoin.activate();
 
     return () => {
-      clearTimeout(timeoutId);
+      stompClientCoin.deactivate();
     };
-  }, [alerts]);
+  }, []);
+
+  const handleNotification = (data: NotificationDto) => {
+    const now = Date.now();
+
+    setAlerts((prevAlerts) =>
+      prevAlerts.map((alert) => {
+        if (alert.token.toUpperCase() === data.token.toUpperCase()) {
+          const timeSinceLastNotification = alert.lastNotifiedAt
+            ? now - alert.lastNotifiedAt
+            : Infinity;
+          if (timeSinceLastNotification >= 5000) {
+            alertUser({
+              ...alert,
+              currentPrice: data.currentPrice,
+            });
+
+            return {
+              ...alert,
+              currentPrice: data.currentPrice,
+              lastNotifiedAt: now,
+            };
+          } else {
+            return {
+              ...alert,
+              currentPrice: data.currentPrice,
+            };
+          }
+        }
+        return alert;
+      })
+    );
+  };
 
   const { toast } = useToast();
   const { notifications, setNotifications } = useNotification();
 
-  const alertUser = (alert: Alert, currentPrice: number) => {
-    const message = `Current Price (${amountFormatter(currentPrice)}) ${
+  const alertUser = (alert: Alert) => {
+    const message = `Current Price (${amountFormatter(alert.currentPrice)}) ${
       alert.alertType
     } ${amountFormatter(alert.alertValue)}.`;
 
-    setNotifications((prev) => prev + 1);
+    setTimeout(() => {
+      setNotifications((prev) => prev + 1);
 
-    toast({
-      title: `Alert Triggered for ${alert.name} (${alert.token})`,
-      description: message,
-      variant: "default",
-    });
+      toast({
+        title: `Alert Triggered for ${alert.name} (${alert.token})`,
+        description: message,
+        variant: "default",
+      });
+    }, 0);
   };
 
-  const handleDeleteAlert = async (selectedAlertIds: string[]) => {
+  const handleDeleteAlert = async (selectedTokens: string[]) => {
     const authToken = localStorage.getItem("authToken");
     if (!authToken) {
       router.push("/login");
       return;
     }
 
-    if (!selectedAlertIds.length) {
+    if (!selectedTokens.length) {
       alert("No alerts selected for deletion!");
       return;
     }
 
     try {
       await Promise.all(
-        selectedAlertIds.map((alertId) =>
-          axios.delete(`${NOTIFICATION_API}/delete/${alertId}`, {
+        selectedTokens.map((token) =>
+          axios.delete(`${NOTIFICATION_API}/delete/${token}`, {
             headers: {
               Authorization: `Bearer ${authToken}`,
             },
@@ -365,9 +401,37 @@ export function AlertsTable() {
       accessorKey: "currentPrice",
       header: "Current Price",
       cell: ({ row }) => {
-        const currentPrice = row.getValue("currentPrice");
+        const currentPrice = row.original.currentPrice as number;
+        const previousPrice = row.original.previousPrice as number;
+
+        if (currentPrice == null) {
+          return <div>N/A</div>;
+        }
+
+        if (previousPrice == null) {
+          return <div>${amountFormatter(currentPrice)}</div>;
+        }
+
+        const priceChange = currentPrice - previousPrice;
+
+        const priceColor =
+          priceChange > 0
+            ? "text-green-500"
+            : priceChange < 0
+            ? "text-red-500"
+            : "text-black";
+        const ArrowIcon =
+          priceChange > 0
+            ? ChevronUpIcon
+            : priceChange < 0
+            ? ChevronDownIcon
+            : MinusIcon;
+
         return (
-          <div className='capitalize'>${amountFormatter(currentPrice)}</div>
+          <div className={`flex items-center ${priceColor}`}>
+            {ArrowIcon && <ArrowIcon className='w-4 h-4 mr-1' />} $
+            {amountFormatter(currentPrice)}
+          </div>
         );
       },
     },
@@ -386,7 +450,11 @@ export function AlertsTable() {
             cell: ({ row }: { row: any }) => (
               <Button
                 className='text-white'
-                onClick={() => router.push(`/dashboard/alerts/edit`)}
+                onClick={() =>
+                  router.push(
+                    `/dashboard/alerts/edit?token=${row.original.token}`
+                  )
+                }
               >
                 Edit
               </Button>
@@ -399,6 +467,7 @@ export function AlertsTable() {
   const table = useReactTable({
     data: alerts,
     columns,
+    getRowId: (row) => row.token.toLowerCase(),
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
