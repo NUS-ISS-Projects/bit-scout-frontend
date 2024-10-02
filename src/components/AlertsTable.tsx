@@ -119,6 +119,7 @@ export function AlertsTable() {
   const [manageMode, setManageMode] = useState(false);
 
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const dataBuffer = useRef<{ [token: string]: PriceUpdateDto }>({});
   const [userId, setUserId] = useState("");
 
   const fetchUserId = async () => {
@@ -199,19 +200,11 @@ export function AlertsTable() {
     };
   }, [userId]);
 
-  const tokensSetRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    tokensSetRef.current = new Set(
-      alerts.map((alert) => alert.token.toUpperCase())
-    );
-  }, [alerts]);
-
-  // Coin WebSocket
+  //Coin WebSocket
   useEffect(() => {
     if (alerts.length === 0) return;
 
-    // const tokensSet = new Set(alerts.map((alert) => alert.token.toUpperCase()));
+    const tokensSet = new Set(alerts.map((alert) => alert.token.toUpperCase()));
     const stompClientCoin = new Client({
       webSocketFactory: () => new WebSocket(WS_ENDPOINT_COIN),
       reconnectDelay: 5000,
@@ -227,20 +220,8 @@ export function AlertsTable() {
           const data: PriceUpdateDto = JSON.parse(message.body);
           const token = data.token.toUpperCase();
 
-          if (tokensSetRef.current.has(token)) {
-            setAlerts((prevAlerts) =>
-              prevAlerts.map((alert) => {
-                if (alert.token.toUpperCase() === token) {
-                  const previousPrice = alert.currentPrice ?? data.price;
-                  return {
-                    ...alert,
-                    previousPrice: previousPrice,
-                    currentPrice: data.price,
-                  };
-                }
-                return alert;
-              })
-            );
+          if (tokensSet.has(token)) {
+            dataBuffer.current[token] = data;
           }
         }
       });
@@ -248,10 +229,34 @@ export function AlertsTable() {
 
     stompClientCoin.activate();
 
+    const intervalId = setInterval(() => {
+      const bufferedData = dataBuffer.current;
+      dataBuffer.current = {};
+
+      if (Object.keys(bufferedData).length > 0) {
+        setAlerts((prevAlerts) =>
+          prevAlerts.map((alert) => {
+            const token = alert.token.toUpperCase();
+            if (bufferedData[token]) {
+              const previousPrice =
+                alert.currentPrice ?? bufferedData[token].price;
+              return {
+                ...alert,
+                previousPrice,
+                currentPrice: bufferedData[token].price,
+              };
+            }
+            return alert;
+          })
+        );
+      }
+    }, 2000);
+
     return () => {
       stompClientCoin.deactivate();
+      clearInterval(intervalId);
     };
-  }, []);
+  }, [alerts]);
 
   const handleNotification = (data: NotificationDto) => {
     const now = Date.now();
@@ -384,9 +389,29 @@ export function AlertsTable() {
     {
       accessorKey: "alertType",
       header: "Alert Type",
-      cell: ({ row }) => (
-        <div className='capitalize'>{row.getValue("alertType")}</div>
-      ),
+      cell: ({ row }) => {
+        const alertType = row.getValue("alertType") as string;
+        const ArrowIcon =
+          alertType.toLowerCase() === "price rise to"
+            ? ChevronUpIcon
+            : alertType.toLowerCase() === "price fall to"
+            ? ChevronDownIcon
+            : MinusIcon;
+
+        const arrowColor =
+          alertType.toLowerCase() === "price rise to"
+            ? "text-green-500"
+            : alertType.toLowerCase() === "price fall to"
+            ? "text-red-500"
+            : "text-black";
+
+        return (
+          <div className={`flex items-center capitalize ${arrowColor}`}>
+            {ArrowIcon && <ArrowIcon className='w-4 h-4 mr-1' />}
+            {alertType}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "alertValue",

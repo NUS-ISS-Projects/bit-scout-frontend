@@ -112,7 +112,7 @@ export default function EditAlert() {
 
       const filteredAlerts = response.data.filter(
         (alert: any) =>
-          alert.userId === userId && alert.token.toLowerCase() === tokenParam
+          alert.userId === userId && alert.token.toUpperCase() === tokenParam
       );
 
       if (filteredAlerts.length > 0) {
