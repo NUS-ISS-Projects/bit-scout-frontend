@@ -156,9 +156,7 @@ function EditAlertContent() {
         </header>
         <main className='flex min-h-[calc(100vh_-_theme(spacing.16))] flex-1 flex-col items-center justify-center bg-muted/40 p-4 md:p-10'>
           <div className='w-full max-w-md bg-white rounded-lg shadow-md p-6'>
-            <h1 className='text-2xl font-bold mb-6 text-center'>
-              Add New Alert
-            </h1>
+            <h1 className='text-2xl font-bold mb-6 text-center'>Edit Alert</h1>
             <Button
               variant='outline'
               size='icon'

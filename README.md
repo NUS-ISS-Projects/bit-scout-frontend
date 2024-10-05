@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Bit Scout 🚀
 
-## Getting Started
+Bit Scout is a user-friendly cryptocurrency tracking application that allows users to favourite their preferred coins and receive alerts when their prices hit user-specified target values. With BitScout, staying updated on your investments has never been easier!
 
-First, run the development server:
+## Table of Contents
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- [Features](#features)
+- [Screenshots and Demos](#screenshots-and-demos)
+- [Installation](#installation)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Features
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **favourite Your Coins**: Select and keep track of your favourite cryptocurrencies.
+- **Price Alerts**: Set target prices for your favourite coins and receive alerts when prices rise above or drop below the specified target.
+- **Real-Time Tracking**: Stay up to date with the latest market data.
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+## Screenshots and Demos
 
-## Learn More
+Below are some screenshots and gifs to help you get a feel for Bit Scout's user experience.
 
-To learn more about Next.js, take a look at the following resources:
+## Installation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+To get started with BitScout, follow the steps below.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+### Prerequisites
 
-## Deploy on Vercel
+- [Node.js](https://nodejs.org/) (v16 or above recommended)
+- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Steps
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/NUS-ISS-Projects/bit-scout-frontend.git
+   ```
+2. **Navigate to the project directory**:
+   ```bash
+   cd bitscout
+   ```
+3. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+4. **Run the application**:
+   ```bash
+   npm run dev
+   ```
+5. Open your browser and navigate to `http://localhost:3000` to use BitScout.
