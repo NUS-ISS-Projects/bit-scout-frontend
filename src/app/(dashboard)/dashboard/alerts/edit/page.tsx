@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,13 @@ const NOTIFICATION_API = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/notific
 const USER_API = `${process.env.NEXT_PUBLIC_API_BASE_URL}/account/userId`;
 
 export default function EditAlert() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <EditAlertContent />
+    </Suspense>
+  );
+}
+function EditAlertContent() {
   const [coin, setCoin] = useState("");
   const [alertType, setAlertType] = useState("");
   const [alertValue, setAlertValue] = useState("0.00");
