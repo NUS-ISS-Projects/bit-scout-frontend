@@ -18,6 +18,29 @@ Bit Scout is a user-friendly cryptocurrency tracking application that allows use
 
 Below are some screenshots and gifs to help you get a feel for Bit Scout's user experience.
 
+### Home Page
+![homepageSS](https://github.com/user-attachments/assets/5c5ec4d3-d9e4-4b77-bd44-1e0392a66691)
+
+### Login and Registration
+<img src="https://github.com/user-attachments/assets/2ac3a0f9-8e4f-4e62-9b88-89365a6a8856" width="250 height=100">
+<img src="https://github.com/user-attachments/assets/174bc849-db24-4ea0-a790-d45e372643c9" width="250  height=80">
+
+### Dashboard
+![dashboardGif - Made with Clipchamp](https://github.com/user-attachments/assets/d3597183-4f75-41f6-b3d0-d9b3599ca50b)
+
+### User Settings and Security settings
+![settings1SS](https://github.com/user-attachments/assets/e32f4720-bcf5-4655-b9d7-5390e8ef5f28)
+![settings2SS](https://github.com/user-attachments/assets/e0b02475-7c82-4cea-8071-38568a7f6765)
+
+### Watchlists
+![watchlistss](https://github.com/user-attachments/assets/d7b91397-b976-4a3c-a6a1-ded1a2a062ff)
+
+### Alerts and add alerts
+![AlertSS](https://github.com/user-attachments/assets/4cf7e7a3-dca9-4219-995a-07dc3f83f444)
+
+![AddAlertSS](https://github.com/user-attachments/assets/787a1de2-c2dc-4c7e-a595-dea6bfebf84c)
+
+
 ## Installation
 
 To get started with BitScout, follow the steps below.
